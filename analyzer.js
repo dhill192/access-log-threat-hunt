@@ -77,70 +77,64 @@ function analyze(parsed) {
 
   return {
     ip: parsed.ip,
-    time: parsed.timestamp,
+    timestamp: parsed.timestamp,
     request: parsed.request,
-    status: parsed.status,
-    userAgent: parsed.userAgent,
     hits
   };
 }
 
-function main() {
-  const args = getArgs(process.argv);
-  if (!args.input) {
-    console.log("Usage: node analyzer.js --in access.log");
-    process.exit(1);
-  }
+// --- MAIN EXECUTION ---
 
-  if (!fs.existsSync(args.input)) {
-    console.error("Input file not found.");
-    process.exit(1);
-  }
+const args = getArgs(process.argv);
 
-  ensureDir(args.output);
-
-  const lines = fs.readFileSync(args.input, "utf8").split(/\r?\n/);
-
-  const flagged = [];
-  const stats = {
-    totalLines: 0,
-    flagged: 0,
-    byDetector: {},
-    bySeverity: {}
-  };
-
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    stats.totalLines++;
-
-    const parsed = parseLine(line);
-    if (!parsed) continue;
-
-    const result = analyze(parsed);
-    if (result) {
-      stats.flagged++;
-
-      for (const h of result.hits) {
-        stats.byDetector[h.detector] = (stats.byDetector[h.detector] || 0) + 1;
-        stats.bySeverity[h.severity] = (stats.bySeverity[h.severity] || 0) + 1;
-      }
-
-      if (flagged.length < args.max) flagged.push(result);
-    }
-  }
-
-  fs.writeFileSync(
-    path.join(args.output, "flagged.json"),
-    JSON.stringify(flagged, null, 2)
-  );
-
-  fs.writeFileSync(
-    path.join(args.output, "summary.json"),
-    JSON.stringify(stats, null, 2)
-  );
-
-  console.log("Analysis complete.");
-  console.log(stats);
+if (!args.input) {
+  console.error("❌ Please provide input file: --in <logfile>");
+  process.exit(1);
 }
 
-main();
+ensureDir(args.output);
+
+const lines = fs.readFileSync(args.input, "utf-8").split("\n").slice(0, args.max);
+
+const alerts = [];
+const ipCounts = {};
+
+for (const line of lines) {
+  const parsed = parseLine(line);
+  if (!parsed) continue;
+
+  // Track IP counts (for brute-force style detection later)
+  ipCounts[parsed.ip] = (ipCounts[parsed.ip] || 0) + 1;
+
+  const result = analyze(parsed);
+  if (result) alerts.push(result);
+}
+
+// Detect high-volume IPs
+const suspiciousIPs = [];
+for (const ip in ipCounts) {
+  if (ipCounts[ip] > 100) {
+    suspiciousIPs.push({ ip, count: ipCounts[ip] });
+  }
+}
+
+// --- OUTPUT ---
+
+console.log("\n🚨 DETECTED THREATS:");
+console.log(alerts);
+
+console.log("\n🚨 HIGH VOLUME IPS:");
+console.log(suspiciousIPs);
+
+// Save results
+fs.writeFileSync(
+  path.join(args.output, "alerts.json"),
+  JSON.stringify(alerts, null, 2)
+);
+
+fs.writeFileSync(
+  path.join(args.output, "ip_summary.json"),
+  JSON.stringify(ipCounts, null, 2)
+);
+
+console.log("\n✅ Analysis complete. Results saved to output/");
