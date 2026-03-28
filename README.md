@@ -1,81 +1,53 @@
 # Access Log Threat Hunt
 
-A Node.js-based log analysis tool that detects suspicious activity in web server access logs, simulating real Tier 1 SOC analyst workflows.
+A Node.js log analysis tool that parses web server access logs and flags suspicious activity commonly reviewed in a Tier 1 SOC workflow.
 
----
+## Overview
 
-## 🔍 Overview
+This project reads HTTP access logs, extracts useful request data, and applies simple detection logic to identify potentially malicious behavior.
 
-This project analyzes HTTP access logs and identifies potential security threats such as:
+The current version looks for:
 
-- SQL Injection attempts
-- Cross-Site Scripting (XSS)
-- Directory traversal attacks
-- Access to sensitive files
-- Known scanning tools (e.g., sqlmap, nmap)
-- High-volume IP activity (possible brute force or scanning)
+- SQL injection patterns
+- Cross-site scripting (XSS) attempts
+- Directory traversal activity
+- Requests for sensitive files
+- Known scanner or automation user agents
+- High-volume IP activity that may suggest scanning or brute-force behavior
 
----
+## What It Does
 
-## 🚨 Detection Capabilities
+The script:
 
-| Threat Type           | Description |
-|----------------------|------------|
-| SQL Injection        | Detects common injection patterns (`UNION SELECT`, `OR 1=1`) |
-| XSS                  | Flags script injection attempts (`<script>`, `javascript:`) |
-| Directory Traversal  | Detects `../` path manipulation |
-| Sensitive Files      | Access attempts to `.env`, `.git`, config files |
-| Scanner Detection    | Identifies known tools via User-Agent |
-| High Volume IPs      | Flags IPs with excessive requests |
+- Parses each access log line into structured fields
+- Applies regex-based detection rules to request paths and user agents
+- Tracks request volume by source IP
+- Writes findings to output files for review
 
----
+## Detection Coverage
 
-## ⚙️ How It Works
+| Threat Type | What It Looks For |
+|---|---|
+| SQL Injection | Patterns such as `UNION SELECT`, `' OR 1=1`, and similar query manipulation |
+| XSS | Script-related payloads such as `<script>` or `javascript:` |
+| Directory Traversal | Requests containing `../` or similar traversal patterns |
+| Sensitive File Access | Attempts to reach files like `.env`, `.git`, or config-related paths |
+| Scanner Detection | User agents associated with tools such as `sqlmap` or `nmap` |
+| High-Volume IPs | Unusually high request counts from a single IP |
 
-1. Parses each log line into structured data
-2. Applies regex-based threat detection rules
-3. Tracks IP request frequency
-4. Outputs detected threats and suspicious activity
-
----
-
-## 📂 Output
-
-The script generates:
-
-- `alerts.json` → Detected threats
-- `ip_summary.json` → Request counts per IP
-
----
-
-## 🧠 SOC Relevance
-
-This project demonstrates:
-
-- Log parsing and normalization
-- Threat detection using pattern matching
-- Basic behavioral analysis (IP activity tracking)
-- Security-focused scripting in Node.js
-
----
-
-## 🚀 Future Improvements
-
-- Add geolocation lookup for IPs
-- Integrate with SIEM tools (Splunk/Wazuh)
-- Real-time log monitoring
-- Alert severity scoring system
-
----
-
-## 📌 Tech Stack
+## Tech Stack
 
 - Node.js
-- Regex-based detection
+- JavaScript
+- Regular expressions
 - File system processing
 
----
+## How to Run It
 
-## 📎 Note
+1. Clone the repository
+2. Make sure Node.js is installed
+3. Place or confirm the sample log file in the expected location
+4. Run the script:
 
-This project is part of my cybersecurity portfolio as I prepare for a Tier 1 SOC Analyst role.
+```bash
+node analyzer.js --in sample_logs/access.log
